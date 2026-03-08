@@ -225,6 +225,76 @@ window.dbUploadFile = async (osId, dataUrl, nome) => {
   } catch(e){ console.error('dbUploadFile:', e); return null; }
 };
 
+// ── Envio de e-mail via Edge Function ──────────────────────────
+const EDGE_URL = 'https://chgkltcsijgjajbspiuf.supabase.co/functions/v1/smart-service';
+const EDGE_KEY = 'sb_publishable_jrdkbq-6iiYsyTY00GDmFg__myzE-un';
+
+window.sendEmail = async (para, assunto, corpo) => {
+  try {
+    const res = await fetch(EDGE_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${EDGE_KEY}`
+      },
+      body: JSON.stringify({ para, assunto, corpo })
+    });
+    const data = await res.json();
+    if (!data.ok) console.error('sendEmail error:', data.error);
+    return data.ok;
+  } catch(e) {
+    console.error('sendEmail failed:', e);
+    return false;
+  }
+};
+
+const PRI_LABEL = {emer:'🚨 EMERGENCIAL — 1 dia', alta:'🔴 Alta — 5 dias', media:'🟡 Média — 20 dias', baixa:'🟢 Baixa — 30 dias'};
+
+window.emailOS = (os, equipe) => ({
+  assunto: `🚨 Nova O.S. Nº ${os.num} — SHPP Osasco`,
+  corpo: `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden">
+      <div style="background:#1c1a18;padding:20px 24px;display:flex;align-items:center;gap:12px">
+        <div style="background:#9e7328;width:36px;height:36px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px">⚖</div>
+        <div>
+          <div style="color:#c8a84b;font-family:monospace;font-size:13px;letter-spacing:2px;font-weight:700">SGOS — SHPP OSASCO</div>
+          <div style="color:#8a8078;font-size:11px;font-family:monospace">Setor de Homicídios de Osasco</div>
+        </div>
+      </div>
+      <div style="background:#b83229;padding:12px 24px">
+        <div style="color:#fff;font-family:monospace;font-weight:700;font-size:15px;letter-spacing:1px">⚡ NOVA ORDEM DE SERVIÇO DISTRIBUÍDA</div>
+      </div>
+      <div style="padding:24px;background:#fff">
+        <table style="width:100%;border-collapse:collapse">
+          <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#666;font-size:13px;width:140px">Nº O.S.</td>
+              <td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:700;font-family:monospace;font-size:16px;color:#1c1a18">${os.num}</td></tr>
+          <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#666;font-size:13px">Vítima</td>
+              <td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600;color:#1c1a18">${os.vit}</td></tr>
+          <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#666;font-size:13px">Natureza</td>
+              <td style="padding:8px 0;border-bottom:1px solid #eee;color:#1c1a18">${os.nat}</td></tr>
+          <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#666;font-size:13px">Prioridade</td>
+              <td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:700;color:#b83229">${PRI_LABEL[os.pri]||os.pri}</td></tr>
+          <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#666;font-size:13px">Prazo</td>
+              <td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600;color:#1c1a18">${os.pra}</td></tr>
+          <tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#666;font-size:13px">Equipe</td>
+              <td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:700;color:#1856a0">Equipe ${equipe}</td></tr>
+          <tr><td style="padding:8px 0;color:#666;font-size:13px">Delegado</td>
+              <td style="padding:8px 0;color:#1c1a18">${os.del||'—'}</td></tr>
+        </table>
+        <div style="margin-top:24px;text-align:center">
+          <a href="https://sgos-osasco.vercel.app" style="background:#9e7328;color:#1a1a1a;font-family:monospace;font-weight:700;padding:14px 32px;border-radius:7px;text-decoration:none;font-size:13px;letter-spacing:1px;display:inline-block">
+            ACESSAR O SISTEMA →
+          </a>
+        </div>
+      </div>
+      <div style="background:#f6f3ef;padding:12px 24px;text-align:center;font-size:11px;color:#9e9588;font-family:monospace">
+        SGOS — Polícia Civil de SP · Setor de Homicídios de Osasco — SHPP<br>
+        Este é um e-mail automático. Não responda diretamente.
+      </div>
+    </div>
+  `
+});
+
 </script>
 <script type="text/babel" data-presets="react">
 const PRIS=[{id:"emer",l:"Emergencial",d:1,ic:"🚨",cl:"pri-re"},{id:"alta",l:"Alta",d:5,ic:"🔴",cl:"pri-re"},{id:"media",l:"Média",d:20,ic:"🟡",cl:"pri-ye"},{id:"baixa",l:"Baixa",d:30,ic:"🟢",cl:""}];
@@ -592,7 +662,20 @@ window.TabDistribuir = function({ordens,users,setOrdens,setNotifs,setPdf,toast})
     const os=ordens.find(x=>x.id===osId);
     setOrdens(o=>o.map(x=>x.id===osId?{...x,eq,st:"distribuida",dtEq:td()}:x));
     window.dbUpdateOS(osId,{st:"distribuida",eq,dtEq:td()}).catch(console.error);
-    users.filter(u=>u.role==="investigador"&&u.eq===eq).forEach(u=>setNotifs(n=>{const notif={id:uid(),uid:u.id,msg:`Nova O.S. Nº ${os?.num} — Equipe ${eq}`,t:nt(),lida:false};window.dbNotif(notif).catch(console.error);return[...n,notif];}));
+    users.filter(u=>u.role==="investigador"&&u.eq===eq).forEach(u=>{
+      setNotifs(n=>{const notif={id:uid(),uid:u.id,msg:`Nova O.S. Nº ${os?.num} — Equipe ${eq}`,t:nt(),lida:false};window.dbNotif(notif).catch(console.error);return[...n,notif];});
+      if(u.email){const {assunto,corpo}=window.emailOS(os,eq);window.sendEmail(u.email,assunto,corpo).catch(console.error);}
+    });
+    // Cópia para o chefe
+    users.filter(u=>u.role==="chefe").forEach(u=>{
+      if(u.email){const {assunto,corpo}=window.emailOS(os,eq);window.sendEmail(u.email,`[Cópia] ${assunto}`,corpo).catch(console.error);}
+    });
+    // Cópia para o solicitante (criador da O.S.)
+    const criador=users.find(u=>u.id===os?.por);
+    if(criador?.email&&criador.role!=="investigador"&&criador.role!=="chefe"){
+      const {assunto,corpo}=window.emailOS(os,eq);
+      window.sendEmail(criador.email,`[Cópia] ${assunto}`,corpo).catch(console.error);
+    }
     if(os?.por)setNotifs(n=>[...n,{id:uid(),uid:os.por,msg:`O.S. Nº ${os?.num} distribuída para Equipe ${eq}`,t:nt(),lida:false}]);
     toast(`Equipe ${eq} → O.S. ${os?.num}`);
   };
@@ -790,7 +873,15 @@ window.TabAgentes = function({users,setUsers,setDlg,toast}){
           )}
           <div style={{marginBottom:12}}>
             <label className="lbl">E-mail Institucional *</label>
-            <input value={fA.email} onChange={e=>sa("email",e.target.value)} placeholder="nome@policiacivil.sp.gov.br" className={inpA("email")}/>
+            <div style={{display:"flex",alignItems:"center",border:`1px solid ${erA.email||erA.emailFmt?"var(--re)":"var(--bd)"}`,borderRadius:6,background:"var(--p2)",overflow:"hidden"}}>
+              <input
+                value={fA.email.replace("@policiacivil.sp.gov.br","")}
+                onChange={e=>{const v=e.target.value.replace(/@.*/,"");sa("email",v+"@policiacivil.sp.gov.br");}}
+                placeholder="nome.sobrenome"
+                style={{flex:1,background:"transparent",border:"none",outline:"none",fontSize:17,padding:"10px 12px",color:"var(--tx)",minWidth:0}}
+              />
+              <span style={{padding:"10px 12px",background:"var(--bd)",color:"var(--ts)",fontSize:14,fontFamily:"monospace",whiteSpace:"nowrap",borderLeft:"1px solid var(--bd)"}}>@policiacivil.sp.gov.br</span>
+            </div>
             {erA.emailFmt&&<div style={{fontSize:10,color:"var(--re)",marginTop:4}}>⚠ Use @policiacivil.sp.gov.br</div>}
             {!erA.emailFmt&&fA.email&&ERE.test(fA.email)&&<div style={{fontSize:10,color:"var(--gr)",marginTop:4}}>✓ E-mail válido</div>}
           </div>
