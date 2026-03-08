@@ -1,0 +1,26 @@
+{
+  "name": "SGOS — Setor de Homicídios Osasco",
+  "short_name": "SGOS",
+  "description": "Sistema de Gestão de Ordens de Serviço · SHPP Osasco",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f0ede8",
+  "theme_color": "#1a7540",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "lang": "pt-BR"
+}
