@@ -1499,7 +1499,6 @@ window.LoginScreen = function({users, onLogin}){
         body:JSON.stringify({
           assunto:`[SGOS] Redefinição de senha — ${user.nome}`,
           corpo:`Olá, ${user.nome}!\n\nVocê solicitou redefinição de senha no SGOS — SHPP Osasco.\n\nSua senha temporária é:\n\n${token}\n\nAcesse o sistema, selecione seu perfil e use esta senha para entrar.\nVocê será obrigado a criar uma nova senha no primeiro acesso.\n\nSe não foi você, ignore este e-mail.\n\nSGOS — Setor de Homicídios de Osasco`,
-          emailDireto:user.email
         })
       });
       setEsqStatus("sent");
