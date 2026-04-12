@@ -1655,14 +1655,19 @@ window.LoginScreen = function({users, onLogin}){
           {esqStatus!=="sent"&&(
             <>
               <input
-                className="sgos-input"
-                type="email"
-                value={esqEmail}
-                onChange={e=>{setEsqEmail(e.target.value);setEsqStatus("");}}
-                onKeyDown={e=>e.key==="Enter"&&handleEsqueci()}
-                placeholder="seu.nome@policiacivil.sp.gov.br"
-                style={{width:"100%",padding:"12px 14px",borderRadius:9,border:"1.5px solid var(--bd)",background:"var(--panel)",color:"var(--tx)",fontSize:14,fontFamily:"inherit",outline:"none",boxSizing:"border-box",marginBottom:10}}
-                autoFocus
+            <div style={{display:"flex",alignItems:"center",border:"1.5px solid var(--bd)",borderRadius:9,background:"var(--panel)",overflow:"hidden",marginBottom:10}}>
+  <input
+    className="sgos-input"
+    type="text"
+    value={esqEmail.replace("@policiacivil.sp.gov.br","")}
+    onChange={e=>{const v=e.target.value.replace(/@.*/,"");setEsqEmail(v+"@policiacivil.sp.gov.br");setEsqStatus("");}}
+    onKeyDown={e=>e.key==="Enter"&&handleEsqueci()}
+    placeholder="nome.sobrenome"
+    style={{flex:1,background:"transparent",border:"none",outline:"none",fontSize:15,padding:"12px 14px",color:"var(--tx)",minWidth:0}}
+    autoFocus
+  />
+  <span style={{padding:"12px 14px",background:"var(--bd)",color:"var(--ts)",fontSize:13,fontFamily:"monospace",whiteSpace:"nowrap",borderLeft:"1px solid var(--bd)"}}>@policiacivil.sp.gov.br</span>
+</div>
               />
               {esqStatus==="email_vazio"&&<div style={{fontSize:12,color:"var(--re)",marginBottom:8}}>Digite seu e-mail.</div>}
               {esqStatus==="nao_encontrado"&&<div style={{fontSize:12,color:"var(--re)",marginBottom:8}}>E-mail não encontrado no sistema.</div>}
