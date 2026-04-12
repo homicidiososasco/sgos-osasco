@@ -610,7 +610,7 @@ window.TabNovaOS = function({ordens,users,meId,me,setPdf,toast,setOrdens,setNoti
     if(!form.nat)e.nat=true;
     if(form.nat==="Outros"&&!form.natOut?.trim())e.natOut=true;
     setEr(e);if(Object.keys(e).length){toast("Preencha todos os campos obrigatórios","err");return;}
-    const nova={id:uid(),num:`${String(ordens.length+1).padStart(3,"0")}/${new Date().getFullYear()}`,ip:form.ip,vit:form.vit.toUpperCase(),av:form.av||"Não identificado",nat:form.nat==="Outros"?form.natOut:form.nat,cart:form.cart,pri:form.pri,emi:form.emi,pra:pAuto,ori:form.ori,fin:form.fin,del:form.del,st:"pendente",eq:"",rel:null,por:meId};
+    const nova={id:uid(),num:`${String(Math.max(53,...ordens.map(o=>parseInt(o.num)||0))+1).padStart(3,"0")}/${new Date().getFullYear()}`,ip:form.ip,vit:form.vit.toUpperCase(),av:form.av||"Não identificado",nat:form.nat==="Outros"?form.natOut:form.nat,cart:form.cart,pri:form.pri,emi:form.emi,pra:pAuto,ori:form.ori,fin:form.fin,del:form.del,st:"pendente",eq:"",rel:null,por:meId};
     setOrdens(o=>[...o,nova]);
     window.dbInsertOS(nova).catch(console.error);
     users.filter(u=>u.role==="chefe").forEach(u=>setNotifs(n=>{const notif={id:uid(),uid:u.id,msg:`Nova O.S. Nº ${nova.num} de ${me.nome} aguarda distribuição`,t:nt(),lida:false};window.dbNotif(notif).catch(console.error);return[...n,notif];}));
@@ -1463,6 +1463,9 @@ window.LoginScreen = function({users, onLogin}){
   const[confirma,setConfirma]=React.useState("");
   const[errTroca,setErrTroca]=React.useState("");
   const[show,setShow]=React.useState(false);
+  const[esqueci,setEsqueci]=React.useState(false);
+  const[esqEmail,setEsqEmail]=React.useState("");
+  const[esqStatus,setEsqStatus]=React.useState(""); // "sending"|"sent"|"error"
   const[showN,setShowN]=React.useState(false);
 
   const RC={chefe:"var(--go)",delegado:"var(--bl)",escrivao:"var(--ye)",investigador:"var(--gr)"};
@@ -1476,6 +1479,31 @@ window.LoginScreen = function({users, onLogin}){
   ];
 
   const selUser=users.find(u=>u.id===sel);
+
+  const handleEsqueci=async()=>{
+    if(!esqEmail.trim()){setEsqStatus("email_vazio");return;}
+    const user=users.find(u=>u.email&&u.email.toLowerCase()===esqEmail.toLowerCase().trim());
+    if(!user){setEsqStatus("nao_encontrado");return;}
+    setEsqStatus("sending");
+    // Gera token simples (6 dígitos) e salva como nova senha temporária
+    const token=String(Math.floor(100000+Math.random()*900000));
+    const ok=await window.dbTrocarSenha(user.id, token);
+    if(!ok){setEsqStatus("error");return;}
+    // Força primeiro_acesso=true para obrigar troca
+    await SB.from('usuarios').update({primeiro_acesso:true}).eq('id',user.id);
+    // Envia e-mail com código via Edge Function
+    try{
+      await fetch(EDGE_URL,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','apikey':EDGE_KEY},
+        body:JSON.stringify({
+          assunto:`[SGOS] Redefinição de senha — ${user.nome}`,
+          corpo:`Olá, ${user.nome}!\n\nVocê solicitou redefinição de senha no SGOS — SHPP Osasco.\n\nSua senha temporária é:\n\n${token}\n\nAcesse o sistema, selecione seu perfil e use esta senha para entrar.\nVocê será obrigado a criar uma nova senha no primeiro acesso.\n\nSe não foi você, ignore este e-mail.\n\nSGOS — Setor de Homicídios de Osasco`
+        })
+      });
+      setEsqStatus("sent");
+    }catch(e){setEsqStatus("error");}
+  };
 
   const handleLogin=async()=>{
     if(!senha.trim()){setErr("Digite sua senha.");return;}
@@ -1541,7 +1569,7 @@ window.LoginScreen = function({users, onLogin}){
       </div>
 
       {/* TELA 1 — Seleção de perfil */}
-      {!sel&&(
+      {!sel&&!esqueci&&(
         <div style={{width:"100%",maxWidth:900}}>
           <div style={{fontFamily:"monospace",fontSize:11,color:"var(--ts)",letterSpacing:3,textAlign:"center",marginBottom:18,textTransform:"uppercase",fontWeight:600}}>Selecione seu perfil</div>
           {groups.map(({label,key,cols})=>{
@@ -1574,7 +1602,7 @@ window.LoginScreen = function({users, onLogin}){
       )}
 
       {/* TELA 2 — Digite a senha */}
-      {sel&&!trocando&&(
+      {sel&&!trocando&&!esqueci&&(
         <div style={{width:"100%",maxWidth:320,textAlign:"center"}}>
           {/* Card usuário */}
           <div style={{background:"var(--panel)",border:`2px solid ${RC[selUser?.role]||"var(--bd)"}44`,borderRadius:12,padding:"12px 16px",marginBottom:22,display:"flex",alignItems:"center",gap:12}}>
@@ -1610,6 +1638,52 @@ window.LoginScreen = function({users, onLogin}){
           <button onClick={handleLogin} disabled={loading}
             style={{width:"100%",padding:"13px",background:"var(--gr)",border:"none",borderRadius:9,color:"#fff",fontSize:15,fontWeight:700,cursor:loading?"not-allowed":"pointer",opacity:loading?0.7:1,marginTop:4}}>
             {loading?"Verificando...":"Entrar →"}
+          </button>
+          <button onClick={()=>setEsqueci(true)} style={{marginTop:12,background:"none",border:"none",color:"var(--tm)",fontSize:12,cursor:"pointer",textDecoration:"underline"}}>
+            Esqueci minha senha
+          </button>
+        </div>
+      )}
+
+      {/* TELA 4 — Esqueci minha senha */}
+      {esqueci&&(
+        <div style={{width:"100%",maxWidth:340,textAlign:"center"}}>
+          <div style={{fontSize:32,marginBottom:10}}>🔑</div>
+          <div style={{fontSize:16,fontWeight:700,color:"var(--tx)",marginBottom:6}}>Redefinir senha</div>
+          <div style={{fontSize:12,color:"var(--tm)",marginBottom:20}}>Digite seu e-mail institucional. Enviaremos uma senha temporária.</div>
+
+          {esqStatus!=="sent"&&(
+            <>
+              <input
+                className="sgos-input"
+                type="email"
+                value={esqEmail}
+                onChange={e=>{setEsqEmail(e.target.value);setEsqStatus("");}}
+                onKeyDown={e=>e.key==="Enter"&&handleEsqueci()}
+                placeholder="seu.nome@policiacivil.sp.gov.br"
+                style={{width:"100%",padding:"12px 14px",borderRadius:9,border:"1.5px solid var(--bd)",background:"var(--panel)",color:"var(--tx)",fontSize:14,fontFamily:"inherit",outline:"none",boxSizing:"border-box",marginBottom:10}}
+                autoFocus
+              />
+              {esqStatus==="email_vazio"&&<div style={{fontSize:12,color:"var(--re)",marginBottom:8}}>Digite seu e-mail.</div>}
+              {esqStatus==="nao_encontrado"&&<div style={{fontSize:12,color:"var(--re)",marginBottom:8}}>E-mail não encontrado no sistema.</div>}
+              {esqStatus==="error"&&<div style={{fontSize:12,color:"var(--re)",marginBottom:8}}>Erro ao enviar. Tente novamente.</div>}
+              <button onClick={handleEsqueci} disabled={esqStatus==="sending"}
+                style={{width:"100%",padding:"13px",background:"var(--gr)",border:"none",borderRadius:9,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer",opacity:esqStatus==="sending"?0.7:1}}>
+                {esqStatus==="sending"?"Enviando...":"Enviar senha temporária →"}
+              </button>
+            </>
+          )}
+
+          {esqStatus==="sent"&&(
+            <div style={{background:"#e8f5e9",border:"1.5px solid var(--gr)",borderRadius:12,padding:"20px",textAlign:"center"}}>
+              <div style={{fontSize:32,marginBottom:8}}>✅</div>
+              <div style={{fontSize:14,fontWeight:700,color:"var(--gr)",marginBottom:6}}>Senha temporária enviada!</div>
+              <div style={{fontSize:12,color:"var(--tm)"}}>Verifique seu e-mail institucional e use a senha temporária para entrar. Você será obrigado a criar uma nova senha.</div>
+            </div>
+          )}
+
+          <button onClick={()=>{setEsqueci(false);setEsqEmail("");setEsqStatus("");}} style={{marginTop:14,background:"none",border:"none",color:"var(--tm)",fontSize:12,cursor:"pointer",textDecoration:"underline"}}>
+            Voltar ao login
           </button>
         </div>
       )}
@@ -1852,7 +1926,7 @@ window.TabNovaOSEmergencial = function({ordens,users,meId,me,toast,setOrdens,set
     const solId=parseInt(sol);
     const solNome=solList.find(u=>u.id===solId)?.nome||"";
     const pra=addD(data,1);
-    const num=`${String(ordens.length+1).padStart(3,"0")}/${new Date().getFullYear()}`;
+    const num=`${String(Math.max(53,...ordens.map(o=>parseInt(o.num)||0))+1).padStart(3,"0")}/${new Date().getFullYear()}`;
     const reader=new FileReader();
     reader.onload=ev=>{
       const novaOs={
