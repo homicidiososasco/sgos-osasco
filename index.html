@@ -111,12 +111,14 @@ window.rowToOS = r => ({
 });
 
 window.rowToUser = r => ({
-  id:    r.id,
-  nome:  r.nome,
-  role:  r.role,
-  eq:    r.equipe  ||null,
-  cargo: r.cargo   ||'',
-  email: r.email   ||''
+  id:            r.id,
+  nome:          r.nome,
+  role:          r.role,
+  eq:            r.equipe        ||null,
+  cargo:         r.cargo         ||'',
+  email:         r.email         ||'',
+  senha:         r.senha         ||'shpposasco',
+  primeiroAcesso:r.primeiro_acesso!==false
 });
 
 window.rowToNotif = r => ({
@@ -145,6 +147,16 @@ window.dbLoadAll = async () => {
   (pR.data||[]).forEach(r => { pins[r.usuario_id] = r.pin; });
   window.PINS = Object.keys(pins).length ? pins : window.PINS;
   return {users, ordens, notifs};
+};
+
+// ── Autenticação — Troca de Senha ───────────────────────────────
+window.dbTrocarSenha = async (userId, novaSenha) => {
+  const { error } = await SB.from('usuarios').update({
+    senha: novaSenha,
+    primeiro_acesso: false,
+    senha_alterada_em: new Date().toISOString()
+  }).eq('id', userId);
+  return !error;
 };
 
 // ── Ordens de Serviço ───────────────────────────────────────────
@@ -1442,27 +1454,20 @@ window.PINS = {1:"1234",2:"5678",3:"1111",4:"2222",5:"3333",6:"4444",7:"5555"};
 
 window.LoginScreen = function({users, onLogin}){
   const[sel,setSel]=React.useState(null);
-  const[pin,setPin]=React.useState("");
-  const[err,setErr]=React.useState(false);
-  const[shake,setShake]=React.useState(false);
+  const[senha,setSenha]=React.useState("");
+  const[err,setErr]=React.useState("");
+  const[loading,setLoading]=React.useState(false);
+  // Troca de senha
+  const[trocando,setTrocando]=React.useState(false);
+  const[novaSenha,setNovaSenha]=React.useState("");
+  const[confirma,setConfirma]=React.useState("");
+  const[errTroca,setErrTroca]=React.useState("");
+  const[show,setShow]=React.useState(false);
+  const[showN,setShowN]=React.useState(false);
 
-  const press=(d)=>{
-    if(pin.length>=4)return;
-    const np=pin+d;
-    setPin(np);setErr(false);
-    if(np.length===4){
-      setTimeout(()=>{
-        if(window.PINS[sel]===np){ onLogin(sel); }
-        else { setErr(true);setShake(true);setTimeout(()=>{setPin("");setShake(false);},600); }
-      },200);
-    }
-  };
-  const back=()=>setPin(p=>p.slice(0,-1));
-  const reset=()=>{setSel(null);setPin("");setErr(false);};
   const RC={chefe:"var(--go)",delegado:"var(--bl)",escrivao:"var(--ye)",investigador:"var(--gr)"};
   const RI={chefe:"⚖",delegado:"🏛",escrivao:"✍",investigador:"🔍"};
 
-  // Group users by role order
   const groups=[
     {label:"Delegado",key:"delegado",cols:2},
     {label:"Escrivão",key:"escrivao",cols:3},
@@ -1472,11 +1477,60 @@ window.LoginScreen = function({users, onLogin}){
 
   const selUser=users.find(u=>u.id===sel);
 
+  const handleLogin=async()=>{
+    if(!senha.trim()){setErr("Digite sua senha.");return;}
+    setLoading(true);
+    // Recarrega usuário do banco para verificar senha atualizada
+    const {data} = await SB.from('usuarios').select('senha,primeiro_acesso').eq('id',sel).single();
+    const senhaCorreta = data?.senha || selUser?.senha || 'shpposasco';
+    const primAcesso = data?.primeiro_acesso !== false;
+    if(senha !== senhaCorreta){
+      setErr("Senha incorreta. Tente novamente.");
+      setSenha("");
+      setLoading(false);
+      return;
+    }
+    if(primAcesso){
+      setTrocando(true);
+      setLoading(false);
+      return;
+    }
+    setLoading(false);
+    onLogin(sel);
+  };
+
+  const handleTroca=async()=>{
+    if(novaSenha.length < 6){setErrTroca("A senha deve ter no mínimo 6 caracteres.");return;}
+    if(novaSenha !== confirma){setErrTroca("As senhas não coincidem.");return;}
+    if(novaSenha === 'shpposasco'){setErrTroca("Escolha uma senha diferente da senha padrão.");return;}
+    setLoading(true);
+    const ok = await window.dbTrocarSenha(sel, novaSenha);
+    if(ok){
+      // Atualiza localmente
+      selUser.senha = novaSenha;
+      selUser.primeiroAcesso = false;
+      onLogin(sel);
+    } else {
+      setErrTroca("Erro ao salvar. Tente novamente.");
+      setLoading(false);
+    }
+  };
+
+  const reset=()=>{setSel(null);setSenha("");setErr("");setTrocando(false);setNovaSenha("");setConfirma("");setErrTroca("");};
+
+  const inputStyle={
+    width:"100%",padding:"12px 14px",borderRadius:9,
+    border:"1.5px solid var(--bd)",background:"var(--panel)",
+    color:"var(--tx)",fontSize:15,fontFamily:"inherit",
+    outline:"none",boxSizing:"border-box"
+  };
+
   return(
     <div style={{minHeight:"100vh",background:"var(--bg)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"16px 20px",fontFamily:"'Segoe UI',system-ui,sans-serif"}}>
       <style>{`
         @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
         .ucard:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,0.12)!important;}
+        .sgos-input:focus{border-color:var(--gr)!important;}
       `}</style>
 
       {/* Logo */}
@@ -1486,10 +1540,10 @@ window.LoginScreen = function({users, onLogin}){
         <div style={{fontSize:12,color:"var(--tm)",marginTop:4,letterSpacing:0.5}}>Setor de Homicídios de Osasco — SHPP</div>
       </div>
 
-      {!sel?(
+      {/* TELA 1 — Seleção de perfil */}
+      {!sel&&(
         <div style={{width:"100%",maxWidth:900}}>
           <div style={{fontFamily:"monospace",fontSize:11,color:"var(--ts)",letterSpacing:3,textAlign:"center",marginBottom:18,textTransform:"uppercase",fontWeight:600}}>Selecione seu perfil</div>
-
           {groups.map(({label,key,cols})=>{
             const grpUsers=users.filter(u=>u.role===key);
             if(!grpUsers.length) return null;
@@ -1497,16 +1551,14 @@ window.LoginScreen = function({users, onLogin}){
             const ic=RI[key]||"👤";
             return(
               <div key={key} style={{marginBottom:14}}>
-                {/* Group header */}
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,paddingLeft:2}}>
                   <div style={{width:3,height:18,background:clr,borderRadius:2}}/>
                   <span style={{fontFamily:"monospace",fontSize:11,color:clr,fontWeight:700,letterSpacing:2,textTransform:"uppercase"}}>{label}</span>
                   <div style={{flex:1,height:1,background:"var(--bd)",marginLeft:4}}/>
                 </div>
-                {/* Cards row */}
                 <div style={{display:"grid",gridTemplateColumns:`repeat(${cols},1fr)`,gap:8}}>
                   {grpUsers.map(u=>(
-                    <button key={u.id} className="ucard" onClick={()=>{setSel(u.id);setPin("");setErr(false);}}
+                    <button key={u.id} className="ucard" onClick={()=>{setSel(u.id);setSenha("");setErr("");}}
                       style={{background:"var(--panel)",border:`2px solid ${clr}30`,borderRadius:12,padding:"14px 10px",textAlign:"center",cursor:"pointer",transition:"all .18s",boxShadow:"0 2px 6px rgba(0,0,0,0.05)",display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
                       <div style={{width:40,height:40,borderRadius:"50%",background:`${clr}18`,border:`2px solid ${clr}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>{ic}</div>
                       <div style={{fontSize:13,fontWeight:700,color:"var(--tx)",lineHeight:1.2,wordBreak:"break-word",width:"100%"}}>{u.nome.split(" ").slice(0,2).join(" ")}</div>
@@ -1519,10 +1571,13 @@ window.LoginScreen = function({users, onLogin}){
             );
           })}
         </div>
-      ):(
-        /* PIN entry */
-        <div style={{width:"100%",maxWidth:280,textAlign:"center"}}>
-          <div style={{background:"var(--panel)",border:`2px solid ${RC[selUser?.role]||"var(--bd)"}44`,borderRadius:12,padding:"12px 16px",marginBottom:20,display:"flex",alignItems:"center",gap:12}}>
+      )}
+
+      {/* TELA 2 — Digite a senha */}
+      {sel&&!trocando&&(
+        <div style={{width:"100%",maxWidth:320,textAlign:"center"}}>
+          {/* Card usuário */}
+          <div style={{background:"var(--panel)",border:`2px solid ${RC[selUser?.role]||"var(--bd)"}44`,borderRadius:12,padding:"12px 16px",marginBottom:22,display:"flex",alignItems:"center",gap:12}}>
             <div style={{fontSize:26}}>{RI[selUser?.role]||"👤"}</div>
             <div style={{textAlign:"left"}}>
               <div style={{fontSize:15,fontWeight:700,color:"var(--tx)"}}>{selUser?.nome}</div>
@@ -1531,28 +1586,86 @@ window.LoginScreen = function({users, onLogin}){
             <button onClick={reset} style={{marginLeft:"auto",background:"none",border:"none",color:"var(--tm)",fontSize:18,cursor:"pointer",padding:4}}>✕</button>
           </div>
 
-          <div style={{fontFamily:"monospace",fontSize:11,color:"var(--tm)",letterSpacing:1,marginBottom:14,textTransform:"uppercase"}}>Digite seu PIN (4 dígitos)</div>
+          <div style={{fontFamily:"monospace",fontSize:11,color:"var(--tm)",letterSpacing:1,marginBottom:16,textTransform:"uppercase"}}>Digite sua senha</div>
 
-          <div style={{display:"flex",justifyContent:"center",gap:14,marginBottom:8,animation:shake?"shake .4s ease":"none"}}>
-            {[0,1,2,3].map(i=>(
-              <div key={i} style={{width:15,height:15,borderRadius:"50%",border:`2px solid ${err?"var(--re)":"var(--bd)"}`,background:pin.length>i?(err?"var(--re)":"var(--go)"):"transparent",transition:"all .2s"}}/>
-            ))}
+          {/* Campo senha */}
+          <div style={{position:"relative",marginBottom:12}}>
+            <input
+              className="sgos-input"
+              type={show?"text":"password"}
+              value={senha}
+              onChange={e=>{setSenha(e.target.value);setErr("");}}
+              onKeyDown={e=>e.key==="Enter"&&handleLogin()}
+              placeholder="Senha"
+              style={{...inputStyle,paddingRight:44}}
+              autoFocus
+            />
+            <button onClick={()=>setShow(s=>!s)} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"var(--tm)",fontSize:16}}>
+              {show?"🙈":"👁"}
+            </button>
           </div>
-          {err&&<div style={{fontSize:12,color:"var(--re)",marginBottom:10,fontFamily:"monospace"}}>PIN incorreto. Tente novamente.</div>}
-          {!err&&<div style={{height:26}}/>}
 
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,maxWidth:220,margin:"0 auto"}}>
-            {["1","2","3","4","5","6","7","8","9","","0","⌫"].map((d,i)=>(
-              <button key={i} onClick={()=>d==="⌫"?back():d?press(d):null}
-                disabled={!d&&d!=="0"}
-                style={{padding:"14px 0",background:d==="⌫"?"var(--p2)":"var(--panel)",border:"1px solid var(--bd)",borderRadius:9,fontSize:d==="⌫"?17:19,fontWeight:600,fontFamily:"monospace",color:d?"var(--tx)":"transparent",cursor:d?"pointer":"default",opacity:d||d==="0"?1:0,transition:"background .1s"}}>
-                {d}
-              </button>
-            ))}
+          {err&&<div style={{fontSize:12,color:"var(--re)",marginBottom:10,fontFamily:"monospace",background:"#fff0f0",padding:"8px 12px",borderRadius:7,border:"1px solid var(--re)"}}>{err}</div>}
+
+          <button onClick={handleLogin} disabled={loading}
+            style={{width:"100%",padding:"13px",background:"var(--gr)",border:"none",borderRadius:9,color:"#fff",fontSize:15,fontWeight:700,cursor:loading?"not-allowed":"pointer",opacity:loading?0.7:1,marginTop:4}}>
+            {loading?"Verificando...":"Entrar →"}
+          </button>
+        </div>
+      )}
+
+      {/* TELA 3 — Troca de senha obrigatória (primeiro acesso) */}
+      {sel&&trocando&&(
+        <div style={{width:"100%",maxWidth:340,textAlign:"center"}}>
+          <div style={{background:"#fff8e1",border:"1.5px solid var(--go)",borderRadius:12,padding:"14px 16px",marginBottom:20,textAlign:"left"}}>
+            <div style={{fontSize:14,fontWeight:700,color:"var(--go)",marginBottom:4}}>🔐 Primeiro acesso detectado</div>
+            <div style={{fontSize:12,color:"var(--tm)"}}>Por segurança, você deve criar uma senha pessoal antes de continuar. A senha deve ter no mínimo 6 caracteres.</div>
           </div>
-          <div style={{marginTop:14,fontSize:11,color:"var(--tm)"}}>
-            PIN: <span style={{fontFamily:"monospace",color:"var(--go)"}}>{window.PINS[sel]}</span>
+
+          <div style={{fontFamily:"monospace",fontSize:11,color:"var(--tm)",letterSpacing:1,marginBottom:16,textTransform:"uppercase"}}>Criar nova senha</div>
+
+          {/* Nova senha */}
+          <div style={{position:"relative",marginBottom:10}}>
+            <input
+              className="sgos-input"
+              type={showN?"text":"password"}
+              value={novaSenha}
+              onChange={e=>{setNovaSenha(e.target.value);setErrTroca("");}}
+              placeholder="Nova senha (mín. 6 caracteres)"
+              style={{...inputStyle,paddingRight:44,marginBottom:0}}
+              autoFocus
+            />
+            <button onClick={()=>setShowN(s=>!s)} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"var(--tm)",fontSize:16}}>
+              {showN?"🙈":"👁"}
+            </button>
           </div>
+
+          {/* Confirmar senha */}
+          <div style={{position:"relative",marginBottom:14}}>
+            <input
+              className="sgos-input"
+              type="password"
+              value={confirma}
+              onChange={e=>{setConfirma(e.target.value);setErrTroca("");}}
+              onKeyDown={e=>e.key==="Enter"&&handleTroca()}
+              placeholder="Confirmar senha"
+              style={{...inputStyle}}
+            />
+            {confirma&&<div style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",fontSize:14}}>
+              {confirma===novaSenha?"✅":"❌"}
+            </div>}
+          </div>
+
+          {errTroca&&<div style={{fontSize:12,color:"var(--re)",marginBottom:10,fontFamily:"monospace",background:"#fff0f0",padding:"8px 12px",borderRadius:7,border:"1px solid var(--re)"}}>{errTroca}</div>}
+
+          <button onClick={handleTroca} disabled={loading}
+            style={{width:"100%",padding:"13px",background:"var(--gr)",border:"none",borderRadius:9,color:"#fff",fontSize:15,fontWeight:700,cursor:loading?"not-allowed":"pointer",opacity:loading?0.7:1}}>
+            {loading?"Salvando...":"Criar senha e entrar →"}
+          </button>
+
+          <button onClick={reset} style={{marginTop:10,background:"none",border:"none",color:"var(--tm)",fontSize:12,cursor:"pointer",textDecoration:"underline"}}>
+            Voltar à seleção de perfil
+          </button>
         </div>
       )}
     </div>
