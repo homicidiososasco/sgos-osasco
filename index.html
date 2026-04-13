@@ -259,6 +259,7 @@ const WA_GRUPOS = {
   'B': '120363373013368308@g.us',
   'C': '120363373013368308@g.us',
   'D': '120363373013368308@g.us',
+  'Chefia': '120363373013368308@g.us',
 };
 
 window.sendWhatsApp = async (groupId, mensagem) => {
@@ -876,9 +877,9 @@ window.TabDistribuir = function({ordens,users,setOrdens,setNotifs,setPdf,toast})
             <div style={{minWidth:190}}>
               <div style={{fontFamily:"monospace",fontSize:10,color:"var(--tm)",marginBottom:10}}>DESIGNAR EQUIPE</div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-                {["A","B","C","D"].map(eq=>{const m=users.filter(u=>u.role==="investigador"&&u.eq===eq);
+                {["A","B","C","D","Chefia"].map(eq=>{const m=users.filter(u=>u.eq===eq);
                   return<button key={eq} onClick={()=>distrib(o.id,eq)} style={{padding:"10px 6px",borderRadius:7,background:"var(--p2)",border:"1px solid var(--bd)",textAlign:"center",cursor:"pointer"}}>
-                    <div style={{fontFamily:"monospace",fontSize:20,fontWeight:700,color:"var(--go)"}}>{eq}</div>
+                    <div style={{fontFamily:"monospace",fontSize:eq==="Chefia"?11:20,fontWeight:700,color:"var(--go)"}}>{eq}</div>
                     {m.length?m.map(x=><div key={x.id} style={{fontSize:9,color:"var(--tm)"}}>{x.nome.split(" ")[0]}</div>):<div style={{fontSize:9,color:"var(--tm)"}}>—</div>}
                   </button>;
                 })}
@@ -976,7 +977,7 @@ window.TabAgentes = function({users,setUsers,setDlg,toast}){
     if(fA.role==="delegado"&&!fA.sub)e.sub=true;
     if(!fA.nome.trim())e.nome=true;
     if(!fA.cargo)e.cargo=true;
-    if(fA.role==="investigador"&&!fA.eq)e.eq=true;
+    if((fA.role==="investigador"||fA.role==="chefe"||fA.role==="escrivao")&&!fA.eq)e.eq=true;
     if(!fA.email.trim())e.email=true;
     else if(!ERE.test(fA.email))e.emailFmt=true;
     setErA(e);if(Object.keys(e).length){toast("Corrija os campos em vermelho","err");return;}
@@ -1035,14 +1036,14 @@ window.TabAgentes = function({users,setUsers,setDlg,toast}){
               {cargos.map(c=><option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          {fA.role==="investigador"&&(
+          {(fA.role==="investigador"||fA.role==="chefe"||fA.role==="escrivao")&&(
             <div style={{marginBottom:12}}>
               <label className="lbl">Equipe *</label>
               <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
-                {["A","B","C","D"].map(eq=>{const m=users.filter(u=>u.role==="investigador"&&u.eq===eq);const on=fA.eq===eq;
+                {["A","B","C","D","Chefia"].map(eq=>{const m=users.filter(u=>u.eq===eq);const on=fA.eq===eq;
                   return<button key={eq} onClick={()=>sa("eq",eq)} style={{padding:"10px 4px",borderRadius:6,textAlign:"center",border:`1px solid ${erA.eq?"var(--re)":on?"var(--go)":"var(--bd)"}`,background:on?"var(--gb)":"var(--p2)",color:on?"var(--go)":"var(--ts)",cursor:"pointer"}}>
-                    <div style={{fontFamily:"monospace",fontSize:18,fontWeight:700}}>{eq}</div>
-                    <div style={{fontSize:9,color:m.length>=2?"var(--ye)":"var(--tm)"}}>{m.length}/2{m.length>=2?" ⚠":""}</div>
+                    <div style={{fontFamily:"monospace",fontSize:eq==="Chefia"?11:18,fontWeight:700}}>{eq}</div>
+                    <div style={{fontSize:9,color:"var(--tm)"}}>{m.length}</div>
                   </button>;
                 })}
               </div>
@@ -1078,9 +1079,9 @@ window.TabAgentes = function({users,setUsers,setDlg,toast}){
           return<div key={r} style={{marginBottom:16}}>
             <div style={{fontFamily:"monospace",fontSize:10,letterSpacing:2,color:"var(--go)",marginBottom:8,textTransform:"uppercase"}}>{rl[r]} ({g.length})</div>
             {r==="investigador"
-              ?["A","B","C","D"].filter(eq=>g.some(u=>u.eq===eq)).map(eq=>(
+              ?["A","B","C","D","Chefia"].filter(eq=>g.some(u=>u.eq===eq)).map(eq=>(
                 <div key={eq} style={{marginBottom:10}}>
-                  <div style={{fontFamily:"monospace",fontSize:10,color:"var(--tm)",marginBottom:6}}>EQUIPE {eq} · {g.filter(u=>u.eq===eq).length}/2</div>
+                  <div style={{fontFamily:"monospace",fontSize:10,color:"var(--tm)",marginBottom:6}}>EQUIPE {eq} · {g.filter(u=>u.eq===eq).length}</div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>{g.filter(u=>u.eq===eq).map(u=><AgCd key={u.id} u={u} cor={cor} onDel={()=>delAg(u.id,u.nome)}/>)}</div>
                 </div>
               ))
@@ -1180,7 +1181,7 @@ window.TabDashboard = function({ordens, users}){
 
   React.useEffect(()=>{
     Object.values(inst.current).forEach(c=>c&&c.destroy&&c.destroy());
-    const eqs=["A","B","C","D"];
+    const eqs=["A","B","C","D","Chefia"];
     const nats=[...new Set(ordens.map(o=>o.nat).filter(n=>n&&n.length<=40&&!/^(.)\1{5,}$/.test(n)))].slice(0,8);
     const PALETTE=[go,"#4a9ee8","#38c068","#e05040","#d4a820","#9b59b6","#e67e22","#1abc9c"];
 
@@ -1353,7 +1354,7 @@ window.TabExportar = function({ordens, users}){
     const wb=XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb,ws,"Livro O.S.");
     // summary sheet
-    const eqs=["A","B","C","D"];
+    const eqs=["A","B","C","D","Chefia"];
     const sumRows=eqs.map(eq=>{
       const os=ordens.filter(o=>o.eq===eq);
       const fin=os.filter(o=>o.st==="finalizada");
@@ -1377,7 +1378,7 @@ window.TabExportar = function({ordens, users}){
           <div><label className="lbl">Equipe</label>
             <select value={fEq} onChange={e=>setFEq(e.target.value)} className="inp">
               <option value="todas">Todas</option>
-              {["A","B","C","D"].map(eq=><option key={eq} value={eq}>Equipe {eq}</option>)}
+              {["A","B","C","D","Chefia"].map(eq=><option key={eq} value={eq}>Equipe {eq}</option>)}
             </select>
           </div>
           <div><label className="lbl">Status</label>
