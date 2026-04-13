@@ -726,7 +726,6 @@ window.PDFModal = function({os,onClose}){
         ))}
         <div style={{fontWeight:700,textTransform:"uppercase",fontSize:"10.5pt",borderBottom:"1px solid #333",paddingBottom:2,marginBottom:5}}>Prazo</div>
         <p style={{fontSize:"11pt",background:"#f9f9f9",borderLeft:"3px solid #8b0000",padding:"7px 12px",marginBottom:18}}>A Equipe deverá apresentar circunstanciado <strong>RELATÓRIO</strong> em <strong>{fl(os.pra)}</strong>.</p>
-
         <div style={{textAlign:"center",fontWeight:700,fontSize:"13pt",letterSpacing:4,textTransform:"uppercase",borderTop:"1px solid #bbb",borderBottom:"1px solid #bbb",padding:"7px 0",margin:"0 0 26px"}}>C U M P R A – S E.</div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
           <div style={{fontSize:"11pt"}}>Osasco, {fl(os.emi)}</div>
@@ -786,19 +785,13 @@ window.TabRelatorios = function({ordens,meId,setPdf,sq,setSq,role,me}){
       {!list.length&&<div className="card" style={{textAlign:"center",padding:"40px 0",color:"var(--tm)"}}><div style={{fontSize:32}}>📂</div><div style={{marginTop:6}}>{sq?"Nenhum resultado":"Nenhum relatório ainda"}</div></div>}
       {list.map(o=>(
         <div key={o.id} className="card" style={{borderLeft:"4px solid var(--gr)"}}>
-        <div style={{display:"flex",alignItems:"center",border:"1.5px solid var(--bd)",borderRadius:9,background:"var(--panel)",overflow:"hidden",marginBottom:10}}>
-                <input
-                  className="sgos-input"
-                  type="text"
-                  value={esqEmail.replace("@policiacivil.sp.gov.br","")}
-                  onChange={e=>{const v=e.target.value.replace(/@.*/,"");setEsqEmail(v+"@policiacivil.sp.gov.br");setEsqStatus("");}}
-                  onKeyDown={e=>e.key==="Enter"&&handleEsqueci()}
-                  placeholder="nome.sobrenome"
-                  style={{flex:1,background:"transparent",border:"none",outline:"none",fontSize:15,padding:"12px 14px",color:"var(--tx)",minWidth:0}}
-                  autoFocus
-                />
-                <span style={{padding:"12px 14px",background:"var(--bd)",color:"var(--ts)",fontSize:13,fontFamily:"monospace",whiteSpace:"nowrap",borderLeft:"1px solid var(--bd)"}}>@policiacivil.sp.gov.br</span>
-              </div>
+          <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+            <div style={{flex:1}}>
+              <div style={{display:"flex",gap:6,marginBottom:5}}><span style={{fontFamily:"monospace",fontSize:12,fontWeight:700,color:"var(--go)"}}>{o.num}</span><SBadge st={o.st}/></div>
+              <div style={{fontSize:14,fontWeight:700,color:"var(--tx)",marginBottom:2}}>{o.vit}</div>
+              <div style={{fontSize:12,color:"var(--ts)"}}>{o.nat} · Equipe {o.eq}</div>
+              {o.rel&&<div style={{marginTop:8,padding:"7px 10px",background:"var(--grb)",borderRadius:5,border:"1px solid var(--gr)",display:"flex",alignItems:"center",gap:8}}><span>📎</span><div><div style={{fontSize:12,color:"var(--gr)",fontWeight:600}}>{o.rel.nome}</div><div style={{fontSize:11,color:"var(--tm)"}}>{fd(o.rel.dt)}</div></div></div>}
+            </div>
             <div style={{display:"flex",flexDirection:"column",gap:8,flexShrink:0}}>
               <button onClick={()=>setPdf(o)} style={{background:"var(--gb)",border:"1px solid var(--go)",color:"var(--go)",borderRadius:8,padding:"10px 16px",fontSize:13,fontWeight:700,fontFamily:"monospace",cursor:"pointer"}}>⎙ O.S. PDF</button>
               {o.rel&&<a href={o.rel.du} download={o.rel.nome} style={{background:"#e8f5e9",border:"1px solid var(--gr)",color:"#1a7540",borderRadius:8,padding:"10px 16px",fontSize:13,fontWeight:700,fontFamily:"monospace",textDecoration:"none",textAlign:"center",display:"block"}}>📋 Ver Relatório</a>}
@@ -1661,21 +1654,19 @@ window.LoginScreen = function({users, onLogin}){
 
           {esqStatus!=="sent"&&(
             <>
-              <input
-                <div style={{display:"flex",alignItems:"center",border:"1.5px solid var(--bd)",borderRadius:9,background:"var(--panel)",overflow:"hidden",marginBottom:10}}>
-  <input
-    className="sgos-input"
-    type="text"
-    value={esqEmail.replace("@policiacivil.sp.gov.br","")}
-    onChange={e=>{const v=e.target.value.replace(/@.*/,"");setEsqEmail(v+"@policiacivil.sp.gov.br");setEsqStatus("");}}
-    onKeyDown={e=>e.key==="Enter"&&handleEsqueci()}
-    placeholder="nome.sobrenome"
-    style={{flex:1,background:"transparent",border:"none",outline:"none",fontSize:15,padding:"12px 14px",color:"var(--tx)",minWidth:0}}
-    autoFocus
-  />
-  <span style={{padding:"12px 14px",background:"var(--bd)",color:"var(--ts)",fontSize:13,fontFamily:"monospace",whiteSpace:"nowrap",borderLeft:"1px solid var(--bd)"}}>@policiacivil.sp.gov.br</span>
-</div>
-              />
+              <div style={{display:"flex",alignItems:"center",border:"1.5px solid var(--bd)",borderRadius:9,background:"var(--panel)",overflow:"hidden",marginBottom:10}}>
+                <input
+                  className="sgos-input"
+                  type="text"
+                  value={esqEmail.replace("@policiacivil.sp.gov.br","")}
+                  onChange={e=>{const v=e.target.value.replace(/@.*/,"");setEsqEmail(v+"@policiacivil.sp.gov.br");setEsqStatus("");}}
+                  onKeyDown={e=>e.key==="Enter"&&handleEsqueci()}
+                  placeholder="nome.sobrenome"
+                  style={{flex:1,background:"transparent",border:"none",outline:"none",fontSize:15,padding:"12px 14px",color:"var(--tx)",minWidth:0}}
+                  autoFocus
+                />
+                <span style={{padding:"12px 14px",background:"var(--bd)",color:"var(--ts)",fontSize:13,fontFamily:"monospace",whiteSpace:"nowrap",borderLeft:"1px solid var(--bd)"}}>@policiacivil.sp.gov.br</span>
+              </div>
               {esqStatus==="email_vazio"&&<div style={{fontSize:12,color:"var(--re)",marginBottom:8}}>Digite seu e-mail.</div>}
               {esqStatus==="nao_encontrado"&&<div style={{fontSize:12,color:"var(--re)",marginBottom:8}}>E-mail não encontrado no sistema.</div>}
               {esqStatus==="error"&&<div style={{fontSize:12,color:"var(--re)",marginBottom:8}}>Erro ao enviar. Tente novamente.</div>}
