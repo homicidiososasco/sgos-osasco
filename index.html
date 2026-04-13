@@ -579,7 +579,8 @@ window.Cal = function({value,onChange}){
     </div>
   );
 };
-window.AgCd = function({u,cor,onDel}){
+window.AgCd = function({u,cor,onDel,onEdit}){
+  const[editEq,setEditEq]=React.useState(false);
   return(
     <div className="card" style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 12px",marginBottom:0,position:"relative"}}>
       <div style={{width:32,height:32,background:cor,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"#1a1a1a",flexShrink:0}}>{u.nome.charAt(0)}</div>
@@ -588,8 +589,20 @@ window.AgCd = function({u,cor,onDel}){
         <div style={{fontSize:10,color:"var(--ts)"}}>{u.cargo}</div>
         {u.email&&<div style={{fontSize:9,color:"var(--tm)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>✉ {u.email}</div>}
         {u.wa&&<a href={u.wa} target="_blank" rel="noreferrer" style={{fontSize:9,color:"var(--gr)",textDecoration:"none"}}>📱 WhatsApp</a>}
+        {editEq&&onEdit&&(
+          <div style={{marginTop:6,display:"flex",alignItems:"center",gap:4}}>
+            <select defaultValue={u.eq||""} onChange={e=>{onEdit(e.target.value);setEditEq(false);}}
+              style={{fontSize:11,padding:"3px 8px",borderRadius:4,border:"1px solid var(--go)",background:"var(--gb)",color:"var(--go)",fontFamily:"monospace",fontWeight:700,cursor:"pointer",outline:"none"}}>
+              {["A","B","C","D","Chefia"].map(eq=><option key={eq} value={eq}>Equipe {eq}</option>)}
+            </select>
+            <button onClick={()=>setEditEq(false)} style={{background:"none",border:"none",color:"var(--tm)",fontSize:14,cursor:"pointer",lineHeight:1}}>✕</button>
+          </div>
+        )}
       </div>
-      {onDel&&<button onClick={onDel} title="Excluir" style={{background:"none",border:"none",color:"var(--re)",fontSize:15,cursor:"pointer",padding:"2px 4px",flexShrink:0,opacity:.6}}>🗑</button>}
+      <div style={{display:"flex",flexDirection:"column",gap:2,flexShrink:0}}>
+        {onEdit&&!editEq&&<button onClick={()=>setEditEq(true)} title="Trocar equipe" style={{background:"none",border:"none",color:"var(--bl)",fontSize:13,cursor:"pointer",padding:"2px 4px",opacity:.8}}>✏️</button>}
+        {onDel&&<button onClick={onDel} title="Excluir" style={{background:"none",border:"none",color:"var(--re)",fontSize:15,cursor:"pointer",padding:"2px 4px",opacity:.6}}>🗑</button>}
+      </div>
     </div>
   );
 };
@@ -960,7 +973,7 @@ window.TabPainel = function({ordens,setPdf}){
   );
 };
 
-window.TabAgentes = function({users,setUsers,setDlg,toast}){
+window.TabAgentes = function({users,setUsers,setDlg,toast,meRole}){
   const bA={nome:"",role:"investigador",sub:"",eq:"",cargo:"",email:"",wa:""};
   const[fA,setFA]=React.useState(bA);
   const[erA,setErA]=React.useState({});
@@ -1082,7 +1095,7 @@ window.TabAgentes = function({users,setUsers,setDlg,toast}){
               ?["A","B","C","D","Chefia"].filter(eq=>g.some(u=>u.eq===eq)).map(eq=>(
                 <div key={eq} style={{marginBottom:10}}>
                   <div style={{fontFamily:"monospace",fontSize:10,color:"var(--tm)",marginBottom:6}}>EQUIPE {eq} · {g.filter(u=>u.eq===eq).length}</div>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>{g.filter(u=>u.eq===eq).map(u=><AgCd key={u.id} u={u} cor={cor} onDel={()=>delAg(u.id,u.nome)}/>)}</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>{g.filter(u=>u.eq===eq).map(u=><AgCd key={u.id} u={u} cor={cor} onDel={()=>delAg(u.id,u.nome)} onEdit={meRole==="chefe"?(novaEq)=>{setUsers(us=>us.map(x=>x.id===u.id?{...x,eq:novaEq}:x));SB.from("usuarios").update({equipe:novaEq}).eq("id",u.id).catch(console.error);toast(`${u.nome} → Equipe ${novaEq}`,"ok2");}:null}/>)}</div>
                 </div>
               ))
               :<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>{g.map(u=><AgCd key={u.id} u={u} cor={cor} onDel={()=>delAg(u.id,u.nome)}/>)}</div>
@@ -1887,7 +1900,7 @@ function App(){
         {tab==="painel"&&<window.TabPainel ordens={ordens} setPdf={setPdf}/>}
         {tab==="dashboard"&&<window.TabDashboard ordens={ordens} users={users}/>}
         {tab==="exportar"&&<window.TabExportar ordens={ordens} users={users}/>}
-        {tab==="agentes"&&<window.TabAgentes users={users} setUsers={setUsers} setDlg={setDlg} toast={toast}/>}
+        {tab==="agentes"&&<window.TabAgentes users={users} setUsers={setUsers} setDlg={setDlg} toast={toast} meRole={role}/>}
         {tab==="revisar_emerg"&&<window.TabRevisarEmergencial ordens={ordens} users={users} meId={meId} setOrdens={setOrdens} setNotifs={setNotifs} toast={toast} setTab={setTab}/>}
         {tab==="minhas_ordens"&&<window.TabMinhasOrdens {...sp} sq={sq3} setSq={setSq3}/>}
       </div>
