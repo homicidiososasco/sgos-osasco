@@ -1095,10 +1095,10 @@ window.TabAgentes = function({users,setUsers,setDlg,toast,meRole}){
               ?["A","B","C","D","Chefia"].filter(eq=>g.some(u=>u.eq===eq)).map(eq=>(
                 <div key={eq} style={{marginBottom:10}}>
                   <div style={{fontFamily:"monospace",fontSize:10,color:"var(--tm)",marginBottom:6}}>EQUIPE {eq} · {g.filter(u=>u.eq===eq).length}</div>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>{g.filter(u=>u.eq===eq).map(u=><AgCd key={u.id} u={u} cor={cor} onDel={()=>delAg(u.id,u.nome)} onEdit={meRole==="chefe"?(novaEq)=>{setUsers(us=>us.map(x=>x.id===u.id?{...x,eq:novaEq}:x));SB.from("usuarios").update({equipe:novaEq}).eq("id",u.id).catch(console.error);toast(`${u.nome} → Equipe ${novaEq}`,"ok2");}:null}/>)}</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>{g.filter(u=>u.eq===eq).map(u=><AgCd key={u.id} u={u} cor={cor} onDel={()=>delAg(u.id,u.nome)} onEdit={(novaEq)=>{setUsers(us=>us.map(x=>x.id===u.id?{...x,eq:novaEq}:x));SB.from("usuarios").update({equipe:novaEq}).eq("id",u.id).catch(console.error);toast(`${u.nome} → Equipe ${novaEq}`,"ok2");}}/>)}</div>
                 </div>
               ))
-              :<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>{g.map(u=><AgCd key={u.id} u={u} cor={cor} onDel={()=>delAg(u.id,u.nome)}/>)}</div>
+              :<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>{g.map(u=><AgCd key={u.id} u={u} cor={cor} onDel={()=>delAg(u.id,u.nome)} onEdit={(novaEq)=>{setUsers(us=>us.map(x=>x.id===u.id?{...x,eq:novaEq}:x));SB.from("usuarios").update({equipe:novaEq}).eq("id",u.id).catch(console.error);toast(`${u.nome} → Equipe ${novaEq}`,"ok2");}}/>)}</div>
             }
           </div>;
         })}
